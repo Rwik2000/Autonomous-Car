@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 from matplotlib import pyplot as plt
 import glob
-
+import random
 def kmeans_color_quantization(image, clusters=8, rounds=1):
     h, w = image.shape[:2]
     samples = np.zeros([h*w,3], dtype=np.float32)
@@ -27,34 +27,35 @@ def kmeans_color_quantization(image, clusters=8, rounds=1):
 def stackAndShow(a, b):
     horiz = np.vstack((a, b))
     cv2.imshow('image', horiz)
-    
-    
     return cv2.waitKey(0)
 
 def floodFill(img):
     height, width, _ = img.shape
+    orig = img.copy()
     seed = (int(width/2), height - 10)
     val  = 2
     loDiff=(val, val, val, val)
-    color = (255,0,0)
+    color = (255,255,255)
     upDiff=(val, val, val, val)
 
 
     cv2.floodFill(img, None, seedPoint=seed, newVal=color, loDiff=loDiff, upDiff=upDiff)
-    cv2.circle(img, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
+    cv2.circle(orig, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
 
 
-    seed = (int(width/2) - 30, height - 20)
+    seed = (int(width/2) - random.randint(0,50), height - random.randint(0,50))
     cv2.floodFill(img, None, seedPoint=seed, newVal=color, loDiff=loDiff, upDiff=upDiff)
-    cv2.circle(img, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
+    cv2.circle(orig, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
 
-    seed = (int(width/2) + 30, height - 20)
+    seed = (int(width/2) + random.randint(0,50), height - random.randint(0,50))
+    
     cv2.floodFill(img, None, seedPoint=seed, newVal=color, loDiff=loDiff, upDiff=upDiff)
-    cv2.circle(img, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
-    return img
+    cv2.circle(orig, seed, 2, (255, 255, 0), cv2.FILLED, cv2.LINE_AA)
+    return img, orig
 
 
 def grabCut(path):
+    start = time.time()
     img = cv2.imread(path)
     img = cv2.resize(img, (0, 0), None, 2, 2)
     orig = img.copy()
@@ -87,14 +88,49 @@ def grabCut(path):
     # thresh = cv2.cvtColor(gray,cv2.COLOR_GRAY2RGB)
 
 
-    img = floodFill(img)
+    img, orig = floodFill(img)
 
+    # cv2.imshow('flood', img)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) # convert to grayscale
     
-    return stackAndShow(orig, img)
+    blur = cv2.blur(gray, (3, 3)) # blur the image
+    # cv2.imshow('flood', blur)
+    ret, thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY)
+
+    kernel = np.ones((5,5),np.uint8)
+    thresh = cv2.dilate(thresh,kernel,iterations = 5)  
+    thresh = cv2.erode(thresh,kernel,iterations = 5)  
+    
 
 
+    cv2.imshow('thresh', thresh)
+    
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # create hull array for convex hull points
+    hull = []
+
+    # calculate points for each contour
+    for i in range(len(contours)):
+        # creating convex hull object for each contour
+        hull.append(cv2.convexHull(contours[i], False))
+
+    drawing = np.zeros((thresh.shape[0], thresh.shape[1], 3), np.uint8)
+
+    for i in range(len(contours)):
+        color_contours = (0, 255, 0) # green - color for contours
+        color = (255, 0, 0) # blue - color for convex hull
+        # draw ith contour
+        cv2.drawContours(drawing, contours, i, color_contours, 1, 8, hierarchy)
+        # draw ith convex hull object
+        cv2.drawContours(drawing, hull, i, color, 1, 8)
+    print(time.time() - start)
+    return stackAndShow(orig, drawing)
+
+import time
 if __name__ == "__main__":
     for path in sorted(glob.glob('inputs/*'), reverse=True):
+        
         returnval = grabCut(path)
+        
         if returnval == ord('q'):
             break
