@@ -34,12 +34,10 @@ def stackAndShow(a, b, name,  wait = False):
 
 
 
-def floodfillCustomSeed(img, orig, seed):
-    val  = 2
+def floodfillCustomSeed(img, orig, seed, color = (255,255,255), val = 1):
     loDiff=(val, val, val, val)
     upDiff=(val, val, val, val)
     
-    color = (255,255,255)
     cv2.floodFill(img, None, seedPoint=seed, newVal=color, loDiff=loDiff, upDiff=upDiff)
     cv2.circle(orig, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
     return img, orig
@@ -47,9 +45,19 @@ def floodfillCustomSeed(img, orig, seed):
 def floodFill(img):
     height, width, _ = img.shape
     orig = img.copy()
-    img, orig = floodfillCustomSeed(img, orig, ((int(width/2), height - 30)))
-    img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - random.randint(25,50), height - random.randint(25,50))))
-    img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), height - random.randint(25,50))))
+    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2),  30)), color = (0,0,0), val =3)
+    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - random.randint(25,50), random.randint(25,50))),  color = (0,0,0), val =3)
+    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), random.randint(25,50))),  color = (0,0,0), val =3)
+    # cv2.imshow('img,', img)
+
+    for x in range(-100, 100, 30):
+        img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - x, height - 30)))
+    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - random.randint(25,50), height - random.randint(25,50))))
+    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), height - random.randint(25,50))))
+
+    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - random.randint(25,50), height - random.randint(25,50))))
+    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), height - random.randint(25,50))))
+
 
     return img, orig
 
@@ -60,11 +68,14 @@ def grabCut(path = None, video = False, img = None, prevImg = None):
     if not video:
         img = cv2.imread(path)
         img = cv2.resize(img, (0, 0), None, 2, 2)
-    # else:
+        orig = img.copy()
+    else:
         # prevImg = cv2.resize(img, (0, 0), None, 0.5, 0.5)
         # img = cv2.resize(img, (0, 0), None, 0.5, 0.5)
         # img = cv2.addWeighted(prevImg, 0.5, img, 0.5, 0)
-    orig = img.copy()
+        #  img = cv2.subtract(img, prevImg)
+        init = prevImg.copy()
+    
     # kmeans = kmeans_color_quantization(img, clusters=8)
     # cv2.imshow('asdf', kmeans)
     img = cv2.GaussianBlur(img,(3,3),0)
@@ -107,8 +118,10 @@ def grabCut(path = None, video = False, img = None, prevImg = None):
     
     threshThreeChannel = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)
 
+    if not video:
+        init = orig
 
-    drawing = cv2.addWeighted(orig, 1, drawing, 1, 0)
+    drawing = cv2.addWeighted(init, 1, drawing, 1, 0)
     drawing = cv2.addWeighted(threshThreeChannel, 0.5, drawing, 1, 0)
 
 
@@ -120,8 +133,8 @@ def executeVideo():
     startTime = time.time()
     for path in sorted(glob.glob('inputs/videos/*'), reverse=True):
         cap = cv2.VideoCapture(path)
-        ret, prevFrame = cap.read()
-        rollAvg = np.float32(cv2.resize(prevFrame, (0, 0), None, 0.5, 0.5))
+        ret, frame = cap.read()
+        rollAvg = np.float32(cv2.resize(frame, (0, 0), None, 0.5, 0.5))
         while(cap.isOpened()):
             ret, frame = cap.read()
             while time.time() - startTime < 1/fps:
@@ -130,10 +143,9 @@ def executeVideo():
             if not ret:
                 break
             frame = cv2.resize(frame, (0, 0), None, 0.5, 0.5)
-            cv2.accumulateWeighted(frame,rollAvg,0.1)
+            cv2.accumulateWeighted(frame,rollAvg,0.08)
             result = cv2.convertScaleAbs(rollAvg)
-            grabCut(img = result,  video = True, prevImg = prevFrame)
-            prevFrame = frame
+            grabCut(img = result,  video = True, prevImg = frame)
 
 
            
