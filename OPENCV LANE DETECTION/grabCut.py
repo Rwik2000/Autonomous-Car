@@ -71,14 +71,14 @@ def floodFill(img):
     tempmask = mask[0:height, 0:width]
     mean = cv2.mean(img, tempmask)[0:3]
     mean = (int(mean[0]), int(mean[1]), int(mean[2]))
-    max_dist = 50
+    # max_dist = 50
 
     
-    colors = np.array([img[(int(width/2), height - 75)]])
-    dist = distance.cdist(colors, img.reshape(-1, 3), 'euclidean')
-    maska = np.any(dist <= max_dist, axis=0).reshape(img.shape[0], img.shape[1])
-    img = np.repeat(maska[..., None], 3, axis=2) * img
-    cv2.imshow('imga', img)
+    # colors = np.array([img[(int(width/2), height - 75)]])
+    # dist = distance.cdist(colors, img.reshape(-1, 3), 'euclidean')
+    # maska = np.any(dist <= max_dist, axis=0).reshape(img.shape[0], img.shape[1])
+    # img = np.repeat(maska[..., None], 3, axis=2) * img
+    variationMax = 50
     # image_masked = img[np.where(tempmask)]
     # print(mean,np.mean(image_masked), np.var(image_masked[0]))
     # print(mean)
@@ -86,7 +86,7 @@ def floodFill(img):
         for x in seedPoints:
             pixel = np.array(img[seedPoints[0][::-1]])
             dist = ((pixel[0] - mean[0])**2 + (pixel[1] - mean[1])**2 + (pixel[2] - mean[2])**2)**(0.5)
-            if dist > 50:
+            if dist > variationMax:
                 break
                        
             
@@ -119,7 +119,7 @@ def floodFill(img):
             # print(coord, slope, x, img.shape)
             pixel = img[coord[::-1]]
             dist = ((pixel[0] - mean[0])**2 + (pixel[1] - mean[1])**2 + (pixel[2] - mean[2])**2)**(0.5)
-            if dist > 50:
+            if dist > variationMax:
                 continue
             img, orig, tempMask = floodfillCustomSeed(img, orig, coord)
             mask += tempMask
@@ -158,7 +158,6 @@ def grabCut(path = None, video = False, img = None, prevImg = None):
     # cv2.imshow('asdf', kmeans)
     # img = kmeans_color_quantization(img, clusters = 5)
     # img = cv2.blur(img, (3,3))
-    cv2.imshow('kmea', img)
     img, orig , mask= floodFill(img)
 
     # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) # convert to grayscale
@@ -168,8 +167,8 @@ def grabCut(path = None, video = False, img = None, prevImg = None):
     # ret, thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY)
 
     kernel = np.ones((5,5),np.uint8)
-    thresh = cv2.dilate(mask,kernel,iterations = 10)  
-    thresh = cv2.erode(thresh,kernel,iterations = 10)  
+    thresh = cv2.dilate(mask,kernel,iterations = 20)  
+    thresh = cv2.erode(thresh,kernel,iterations = 20)  
     
     thresh = cv2.GaussianBlur(thresh,(21,21),0)
     ret, thresh = cv2.threshold(thresh, 100, 255, cv2.THRESH_BINARY)
@@ -192,6 +191,9 @@ def grabCut(path = None, video = False, img = None, prevImg = None):
         # print(cv2.contourArea(cnt))
         extTop = tuple(cnt[cnt[:, :, 1].argmin()][0])
         extTop = (min(extTop[0], w - 1), min(extTop[1] -1, h-1))
+        if extTop[0] < 0 or extTop[1] < 0:
+            print(extTop)
+            extTop = (0,0)
         # print(extTop)
         seedPoints = [ extTop]
         # print(seedPoints)
@@ -232,8 +234,8 @@ def executeVideo():
     for path in sorted(glob.glob('inputs/videos/*.mp4'), reverse=True):
         cap = cv2.VideoCapture(path)
         ret, frame = cap.read()
-        rollAvg = np.float32(cv2.resize(frame, (0, 0), None, 0.5, 0.5))
-        # rollAvg = np.float32(frame)
+        # rollAvg = np.float32(cv2.resize(frame, (0, 0), None, 0.5, 0.5))
+        rollAvg = np.float32(frame)
 
 
         while(cap.isOpened()):
@@ -243,7 +245,7 @@ def executeVideo():
             startTime = time.time()
             if not ret:
                 break
-            frame = cv2.resize(frame, (0, 0), None, 0.5, 0.5)
+            # frame = cv2.resize(frame, (0, 0), None, 0.5, 0.5)
             cv2.accumulateWeighted(frame,rollAvg,0.1)
             result = cv2.convertScaleAbs(rollAvg)
             grabCut(img = result,  video = True, prevImg = frame)
