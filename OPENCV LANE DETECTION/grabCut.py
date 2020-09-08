@@ -2,6 +2,8 @@ import numpy as np
 import cv2
 from matplotlib import pyplot as plt
 import glob
+
+import time
 import random
 def kmeans_color_quantization(image, clusters=8, rounds=1):
     h, w = image.shape[:2]
@@ -24,68 +26,48 @@ def kmeans_color_quantization(image, clusters=8, rounds=1):
     res = centers[labels.flatten()]
     return res.reshape((image.shape))
 
-def stackAndShow(a, b):
+def stackAndShow(a, b, name,  wait = False):
     horiz = np.vstack((a, b))
-    cv2.imshow('image', horiz)
-    return cv2.waitKey(0)
+    cv2.imshow(name, horiz)
+    if wait:
+        return cv2.waitKey(0)
+
+
+
+def floodfillCustomSeed(img, orig, seed):
+    val  = 2
+    loDiff=(val, val, val, val)
+    upDiff=(val, val, val, val)
+    
+    color = (255,255,255)
+    cv2.floodFill(img, None, seedPoint=seed, newVal=color, loDiff=loDiff, upDiff=upDiff)
+    cv2.circle(orig, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
+    return img, orig
 
 def floodFill(img):
     height, width, _ = img.shape
     orig = img.copy()
-    seed = (int(width/2), height - 10)
-    val  = 2
-    loDiff=(val, val, val, val)
-    color = (255,255,255)
-    upDiff=(val, val, val, val)
+    img, orig = floodfillCustomSeed(img, orig, ((int(width/2), height - 30)))
+    img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - random.randint(25,50), height - random.randint(25,50))))
+    img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), height - random.randint(25,50))))
 
-
-    cv2.floodFill(img, None, seedPoint=seed, newVal=color, loDiff=loDiff, upDiff=upDiff)
-    cv2.circle(orig, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
-
-
-    seed = (int(width/2) - random.randint(0,50), height - random.randint(0,50))
-    cv2.floodFill(img, None, seedPoint=seed, newVal=color, loDiff=loDiff, upDiff=upDiff)
-    cv2.circle(orig, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
-
-    seed = (int(width/2) + random.randint(0,50), height - random.randint(0,50))
-    
-    cv2.floodFill(img, None, seedPoint=seed, newVal=color, loDiff=loDiff, upDiff=upDiff)
-    cv2.circle(orig, seed, 2, (255, 255, 0), cv2.FILLED, cv2.LINE_AA)
     return img, orig
 
 
-def grabCut(path):
+def grabCut(path = None, video = False, img = None, prevImg = None):
+    
     start = time.time()
-    img = cv2.imread(path)
-    img = cv2.resize(img, (0, 0), None, 2, 2)
+    if not video:
+        img = cv2.imread(path)
+        img = cv2.resize(img, (0, 0), None, 2, 2)
+    # else:
+        # prevImg = cv2.resize(img, (0, 0), None, 0.5, 0.5)
+        # img = cv2.resize(img, (0, 0), None, 0.5, 0.5)
+        # img = cv2.addWeighted(prevImg, 0.5, img, 0.5, 0)
     orig = img.copy()
-    # # img = kmeans_color_quantization(img, clusters=3)
-    # cv2.imshow('asdf', img)
-    
-    height, width, _ = orig.shape
-    kernel = np.ones((5,5),np.float32)/25
-    img = cv2.filter2D(img,-1,kernel)
-
-    # cv2.rectangle(orig,(0,int(height/2)),(width,int(height/2)), (255,0,0), 2)
-
-
-    
-
-    # bgdModel = np.zeros((1,65),np.float64)
-    # fgdModel = np.zeros((1,65),np.float64)
-
-    # # rect = (0,int(height/2),width,int(height/2))
-    # rect = (0,0,width-1,height-1)
-    # cv2.grabCut(img,mask,rect,bgdModel,fgdModel,5,cv2.GC_INIT_WITH_RECT)
-
-    # mask2 = np.where((mask==2)|(mask==0),0,255).astype('uint8')
-    # print(len(mask2[mask2 == 1]), len(mask2[0])*len(mask2), mask2.shape)
-
-
-    # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # thresh = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY_INV,3,1)
-    # thresh = cv2.cvtColor(gray,cv2.COLOR_GRAY2RGB)
+    # kmeans = kmeans_color_quantization(img, clusters=8)
+    # cv2.imshow('asdf', kmeans)
+    img = cv2.GaussianBlur(img,(3,3),0)
 
 
     img, orig = floodFill(img)
@@ -115,22 +97,63 @@ def grabCut(path):
         hull.append(cv2.convexHull(contours[i], False))
 
     drawing = np.zeros((thresh.shape[0], thresh.shape[1], 3), np.uint8)
-
+    color_contours = (0, 255, 0) # green - color for contours
+    color = (255, 0, 0) # blue - color for convex hull
     for i in range(len(contours)):
-        color_contours = (0, 255, 0) # green - color for contours
-        color = (255, 0, 0) # blue - color for convex hull
         # draw ith contour
-        cv2.drawContours(drawing, contours, i, color_contours, 1, 8, hierarchy)
+        cv2.drawContours(drawing, contours, i, color_contours, 3, 8, hierarchy)
         # draw ith convex hull object
-        cv2.drawContours(drawing, hull, i, color, 1, 8)
-    print(time.time() - start)
-    return stackAndShow(orig, drawing)
+        cv2.drawContours(drawing, hull, i, color, 3, 8)
+    
+    threshThreeChannel = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB)
 
-import time
-if __name__ == "__main__":
-    for path in sorted(glob.glob('inputs/*'), reverse=True):
+
+    drawing = cv2.addWeighted(orig, 1, drawing, 1, 0)
+    drawing = cv2.addWeighted(threshThreeChannel, 0.5, drawing, 1, 0)
+
+
+    print(time.time() - start)
+    return stackAndShow(orig, drawing, 'window', wait = not video)
+
+def executeVideo():
+    fps = 15
+    startTime = time.time()
+    for path in sorted(glob.glob('inputs/videos/*'), reverse=True):
+        cap = cv2.VideoCapture(path)
+        ret, prevFrame = cap.read()
+        rollAvg = np.float32(cv2.resize(prevFrame, (0, 0), None, 0.5, 0.5))
+        while(cap.isOpened()):
+            ret, frame = cap.read()
+            while time.time() - startTime < 1/fps:
+                True
+            startTime = time.time()
+            if not ret:
+                break
+            frame = cv2.resize(frame, (0, 0), None, 0.5, 0.5)
+            cv2.accumulateWeighted(frame,rollAvg,0.1)
+            result = cv2.convertScaleAbs(rollAvg)
+            grabCut(img = result,  video = True, prevImg = prevFrame)
+            prevFrame = frame
+
+
+           
+            cv2.imshow('avg1',result)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                exit(0)
+        cv2.waitKey(0)
+        cap.release()
+        cv2.destroyAllWindows()
+
+def executeImage():
+    for path in sorted(glob.glob('inputs/images/*'), reverse=True):
         
-        returnval = grabCut(path)
+        returnval = grabCut(path = path)
         
         if returnval == ord('q'):
             break
+
+if __name__ == "__main__":
+    executeVideo()
+    # executeImage()
+
+    
