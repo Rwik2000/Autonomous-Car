@@ -90,7 +90,7 @@ def predict_ext_right(coordinates):
     
     return bottom_point,top_point
 
-def predict_ext_leftt(coordinates):
+def predict_ext_left(coordinates):
     bottom_point=np.zeros(2)
     top_point=np.zeros(2)
     x=min(coordinates[:,1])
@@ -146,7 +146,7 @@ def floodfill(image):
         left_lane,right_lane,coordinates_left,coordinates_right=lane_separation(mask)
 
         bot_right,top_right=predict_ext_right(coordinates_right[0])
-        top_left,bot_left=predict_ext_right(coordinates_left[0])
+        top_left,bot_left=predict_ext_left(coordinates_left[0])
 
         bot_middle=(max(bot_left[0],bot_right[0]),int((bot_left[1]+bot_right[1])/2))
         top_middle=(min(top_left[0],top_right[0]),int((top_left[1]+top_right[1])/2))
