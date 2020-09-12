@@ -8,7 +8,7 @@ import time
 import random
 from scipy.spatial import distance
 import sys
-from new_2 import lane_separation,predict_ext_right,predict_ext_left
+from turn_detection import lane_separation,predict_ext_right,predict_ext_left
 
 seedPoints = []
 def kmeans_color_quantization(image, clusters=8, rounds=1):
