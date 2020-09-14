@@ -3,9 +3,10 @@ import numpy as np
 import random
 import time
 import matplotlib.pyplot as plt
-from skimage.morphology import skeletonize
-from skimage import filters
-from numba import jit
+# from skimage.morphology import skeletonize
+# from skimage import filters
+# from numba import jit'
+from bezier_mine import bezier_coordinates
 import PIL
 def white_mask(image):
     hsv = cv2.cvtColor('image', cv2.COLOR_BGR2HSV)
@@ -92,6 +93,9 @@ def lane_separation(mask):
     # print(len(coordinates[0]))
     indices = np.where(left_lane==255)
     coordinates_left = np.dstack((indices[0],indices[1]))
+    bezier_coordinates(coordinates_left,coordinates_right,left_lane,10)
+
+    # print(coordinates_left)
     return left_lane,right_lane,coordinates_left,coordinates_right
 
 def predict_ext_right(coordinates):
@@ -164,8 +168,8 @@ def floodfill(image):
             num,image,mask,rect = cv2.floodFill(og_img, mask, seed, (0,0,0), loDiff=loDiff, upDiff=upDiff, flags=floodflags)
             cv2.circle(image, seed, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA) 
     
-    thickness = -1
-    mask = cv2.rectangle(mask, (0,height-40), (width+2,height+2), (0,0,0), thickness) 
+    # thickness = -1
+    # mask = cv2.rectangle(mask, (0,height-40), (width+2,height+2), (0,0,0), thickness) 
     
     kernel = np.ones((37,37),np.uint8)
     mask = cv2.dilate(mask,kernel,0)
@@ -173,34 +177,7 @@ def floodfill(image):
 
     # try:
     left_lane,right_lane,coordinates_left,coordinates_right=lane_separation(mask)
-    x_st_left,y_st_left,x_curve_left,y_curve_left=polynom(coordinates_left[0],mask)
-    x_st_right,y_st_right,x_curve_right,y_curve_right=polynom(coordinates_right[0],mask)
-    # st_coordinates=np.array(zip(y_st,x_st))
-    # Left_st=np.array(list(zip(y_st,x_st)))
-    # Left_curve=np.array(list(zip(y_curve,x_curve)))
-    # left_lane=cv2.cvtColor(left_lane,cv2.COLOR_GRAY2BGR)
-    # left_lane=cv2.drawContours(left_lane,st_coordinates,-1,(255,0,0))
-    print("yo")
-    # left_lane_pil=PIL.ImageDraw.Draw(left_lane)
     
-    # left_lane=cv2.polylines(left_lane,(Left_st),False,(255,0,0),2)
-    # cv2.circle(left_lane, (y_st,x_st), 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
-    # bot_right,top_right=predict_ext_right(coordinates_right[0])
-    # top_left,bot_left=predict_ext_left(coordinates_left[0])
-
-    # bot_middle=(max(bot_left[0],bot_right[0]),int((bot_left[1]+bot_right[1])/2))
-    # top_middle=(min(top_left[0],top_right[0]),int((top_left[1]+top_right[1])/2))
-
-    # mask=cv2.cvtColor(mask,cv2.COLOR_GRAY2BGR)
-    # cv2.circle(mask, (bot_right[1],bot_right[0]), 5, (255, 255, 0), cv2.FILLED, cv2.LINE_AA) 
-    # cv2.circle(mask, (top_right[1],top_right[0]), 5, (0, 255, 255), cv2.FILLED, cv2.LINE_AA)
-    # cv2.circle(mask, (top_left[1],top_left[0]), 5, (0, 255, 255), cv2.FILLED, cv2.LINE_AA)
-    # cv2.circle(mask, (bot_left[1],bot_left[0]), 5, (255, 255, 0), cv2.FILLED, cv2.LINE_AA)
-    # cv2.circle(mask, (bot_middle[1],bot_middle[0]), 5, (255, 0, 0), cv2.FILLED, cv2.LINE_AA)
-    # cv2.circle(mask, (top_middle[1],top_middle[0]), 5, (255, 0, 0), cv2.FILLED, cv2.LINE_AA) 
-    
-    # print(len(coordinates[0]))
-
     # cv2.imshow("canny",resize(canny))
     cv2.imshow("mask",resize(mask))
     cv2.imshow("left_lane",left_lane)
@@ -240,9 +217,9 @@ def floodfill(image):
 
 # video.release()
 # cv2.destroyAllWindows()
-start=time.time()
-input_img=cv2.imread("5.jpg")
-output_img=floodfill(input_img)
-end=time.time()
-print(end-start)
-cv2.waitKey(0)
+# start=time.time()
+# input_img=cv2.imread("2.jpg")
+# output_img=floodfill(input_img)
+# end=time.time()
+# print(end-start)
+# cv2.waitKey(0)
