@@ -81,13 +81,6 @@ def floodFill(img, prevframe):
 
     # cv2.imshow('earlymask', mask2)    
     
-
-
-    
-    
-
-    
-    
     # print(mean,np.mean(image_masked), np.var(image_masked[0]))
     # print(mean)
     if len(seedPoints) != 0:
@@ -193,15 +186,15 @@ def direction(thresh):
         bot_middle=(max(bot_left[0],bot_right[0]),int((bot_left[1]+bot_right[1])/2))
         top_middle=(min(top_left[0],top_right[0]),int((top_left[1]+top_right[1])/2))
 
-        if(top_middle[1]-bot_middle[1]<10):
+        if(top_middle[1]-bot_middle[1]<0):
             cv2.putText(mask,"LEFT",(10,30),cv2.FONT_HERSHEY_COMPLEX,0.5,(255,255,255),1,cv2.LINE_AA)
-        elif(top_middle[1]-bot_middle[1]>10):
+        elif(top_middle[1]-bot_middle[1]>0):
             cv2.putText(mask,"RIGHT",(10,30),cv2.FONT_HERSHEY_COMPLEX,0.5,(255,255,255),1,cv2.LINE_AA)
         else:
             cv2.putText(mask,"CENTER",(10,30),cv2.FONT_HERSHEY_COMPLEX,0.5,(255,255,255),1,cv2.LINE_AA)
         if(bot_middle[1]-mask.shape[1]/2<0):
             cv2.putText(mask,"LEFT OFFSET",(10,50),cv2.FONT_HERSHEY_COMPLEX,0.5,(255,255,255),1,cv2.LINE_AA)
-        elif(bot_middle[1]-mask_shape[1]/2>0):
+        elif(bot_middle[1]-mask.shape[1]/2>0):
             cv2.putText(mask,"RIGHT OFFSET",(10,50),cv2.FONT_HERSHEY_COMPLEX,0.5,(255,255,255),1,cv2.LINE_AA)
         else:
             cv2.putText(mask,"ALIGNED",(10,50),cv2.FONT_HERSHEY_COMPLEX,0.5,(255,255,255),1,cv2.LINE_AA)
@@ -213,6 +206,7 @@ def direction(thresh):
         cv2.circle(mask, (bot_left[1],bot_left[0]), 5, (255, 255, 0), cv2.FILLED, cv2.LINE_AA)
         cv2.circle(mask, (bot_middle[1],bot_middle[0]), 5, (255, 0, 0), cv2.FILLED, cv2.LINE_AA)
         cv2.circle(mask, (top_middle[1],top_middle[0]), 5, (255, 0, 0), cv2.FILLED, cv2.LINE_AA)
+        cv2.imshow("mask",mask)
         cv2.imshow("left_lane",left_lane)
         cv2.imshow("right_lane",right_lane)
         return mask
@@ -324,7 +318,7 @@ def executeVideo():
     print(path)
     cap = cv2.VideoCapture(path)
     ret, frame = cap.read()
-    frame=cv2.flip(frame,1)
+    # frame=cv2.flip(frame,1)
     globalMean = np.array(cv2.mean(frame)[0:3]).astype(np.int)
     if sys.argv[1] == 'road.mp4':
         rollAvg = np.float32(cv2.resize(frame, (0, 0), None, 0.5, 0.5))
@@ -333,7 +327,7 @@ def executeVideo():
 
     while(cap.isOpened()):
         ret, frame = cap.read()
-        frame=cv2.flip(frame,1)
+        # frame=cv2.flip(frame,1)
         while time.time() - startTime < 1/fps:
             True
         startTime = time.time()
@@ -361,17 +355,17 @@ def executeVideo():
     cap.release()
     cv2.destroyAllWindows()
 
-def executeImage():
-    for path in sorted(glob.glob('inputs/images/*'), reverse=True):
+# def executeImage():
+#     for path in sorted(glob.glob('inputs/images/*'), reverse=True):
         
-        returnval = grabCut(path = path)
+#         returnval = grabCut(path = path)
         
-        if returnval == ord('q'):
-            break
+#         if returnval == ord('q'):
+#             break
 
 # if __name__ == "__main__":
 #     executeVideo()
     # executeImage()
-# executeVideo()
-grabCut("1.jpg")
+executeVideo()
+# grabCut("1.jpg")
     
