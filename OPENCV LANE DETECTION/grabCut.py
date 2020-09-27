@@ -64,11 +64,13 @@ def floodFill(img, prevframe):
     # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), random.randint(25,50))),  color = (0,0,0), val =3)
     # cv2.imshow('img,', img)
     # img[0: int(height/2), 0: int(width)] = 0
+
+    # img =  cv2.addWeighted(prevframe, 0.2, img, 0.8, 0)
     mask = np.zeros((height+2,width+2),np.uint8)
     variationMax = 50
     for x in range(-100, 100, 30):
         # pixel = np.array(img[( height - heightStart - int(abs(x)/10), int(width/2) - x)])
-        # dist = ((pixel[0] - globalMean[0])**2 + (pixel[1] - globalMean[1])**2 + (pixel[2] - globalMean[2])**2)**(0.5)
+        # dist = ((pixel[0] - globalMean[0])**2 + ( pixel[1] - globalMean[1])**2 + (pixel[2] - globalMean[2])**2)**(0.5)
         # if dist > 150:
         #     break
         img, orig, tempMask = floodfillCustomSeed(img, orig, ((int(width/2) - x, height - heightStart - int(abs(x)/10))))
@@ -76,16 +78,6 @@ def floodFill(img, prevframe):
     kernel = np.ones((5,5),np.uint8)
     mask[mask!=0] = 255
 
-    t = cv2.erode(mask,kernel,iterations = 1)  
-    t = cv2.dilate(t,kernel,iterations = 1) 
-    cv2.imshow('earlymask', mask)    
-    
-
-
-    
-    
-
-    
     
     # print(mean,np.mean(image_masked), np.var(image_masked[0]))
     # print(mean)
@@ -137,6 +129,11 @@ def floodFill(img, prevframe):
 
     # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - random.randint(25,50), height - random.randint(25,50))))
     # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), height - random.randint(25,50))))
+    t = cv2.erode(mask,kernel,iterations = 1)  
+    t = cv2.dilate(t,kernel,iterations = 1) 
+    cv2.imshow('seededmask', mask)    
+
+
     mask[mask!=0] = 255
     tempmask = mask[0:height, 0:width]
     mean = cv2.mean(img, tempmask)[0:3]
@@ -149,36 +146,27 @@ def floodFill(img, prevframe):
         nFrames = 10
     # print(globalMean)
     max_dist = 50
-    
+    # tempimg = cv2.addWeighted(img, 0.8, prevframe, 0.2, 0)
     colors = np.array([globalMean])
-    dist = distance.cdist(colors, prevframe.reshape(-1, 3), 'euclidean')
-    maska = np.any(dist <= max_dist, axis=0).reshape(prevframe.shape[0], prevframe.shape[1])
-    prevframe = np.repeat(maska[..., None], 3, axis=2) * prevframe
-    gray = cv2.cvtColor(prevframe, cv2.COLOR_BGR2GRAY)
+    dist = distance.cdist(colors, img.reshape(-1, 3), 'euclidean')
+    maska = np.any(dist <= max_dist, axis=0).reshape(img.shape[0], img.shape[1])
+    img = np.repeat(maska[..., None], 3, axis=2) * img
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-
-    # t = cv2.blur(gray, (5,5)) 
+    # frame = cv2.resize(frame, (0,0), None, 0.1, 0.1)
+    # frame = kmeans_color_quantization(frame, 8)
+    # frame = cv2.pyrMeanShiftFiltering(frame, 2, 5)
+    # frame = cv2.resize(frame, (0,0), None,10, 10)
+    # t = cv2.blur(gray, (5,5)) .
+    gray = cv2.resize(gray, (0, 0), None, 0.8, 0.8, interpolation = cv2.INTER_AREA  )
     t = cv2.erode(gray,kernel,iterations = 1)  
     t = cv2.dilate(t,kernel,iterations = 1) 
-    
+    t = cv2.resize(t, (0, 0), None, 1.25,1.25, interpolation = cv2.INTER_LINEAR  )
+
+
     ret, t1 = cv2.threshold(t, 1, 255, cv2.THRESH_BINARY)
     t = cv2.cvtColor(t1, cv2.COLOR_GRAY2RGB)
     cv2.imshow('t',t )
-    # for x in range(-100, 100, 30):
-    #     pixel = np.array(img[( height - heightStart - int(abs(x)/10), int(width/2) - x)])
-    #     # dist = ((pixel[0] - globalMean[0])**2 + (pixel[1] - globalMean[1])**2 + (pixel[2] - globalMean[2])**2)**(0.5)
-        
-    #     if pixel[0] == 0 and pixel[1] == 0 and pixel[2] == 0:
-    #         print(pixel, globalMean)
-    #         continue
-    #     img, orig, tempMask = floodfillCustomSeed(t, orig, ((int(width/2) - x, height - heightStart - int(abs(x)/10))))
-    #     mask += tempMask
-
-
-
-
-    cv2.imshow('threshh',mask )
-
     return img, orig, mask
 
 def closest_node(node, nodes):
@@ -300,17 +288,35 @@ def executeVideo():
             break
         if sys.argv[1] == 'road.mp4':
             frame = cv2.resize(frame, (0, 0), None, 0.5, 0.5)
-        cv2.imshow('avg1',frame)
         # frame = cv2.blur(frame, (3,3))
         # frame = cv2.resize(frame, (0,0), None, 0.1, 0.1)
         # frame = kmeans_color_quantization(frame, 8)
         # frame = cv2.pyrMeanShiftFiltering(frame, 2, 5)
         # frame = cv2.resize(frame, (0,0), None,10, 10)
         
-        cv2.accumulateWeighted(frame,rollAvg,0.1)
+        
         result = cv2.convertScaleAbs(rollAvg)
-        grabCut(img = result,  video = True, prevImg = frame)
+        
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        scale = 1
+        delta = 0
+        ddepth = cv2.CV_16S
+        ksize = 3
+        
+        grad_x = cv2.Sobel(gray, ddepth, 1, 0, ksize=ksize, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
+        grad_y = cv2.Sobel(gray, ddepth, 0, 1, ksize=ksize, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
+        abs_grad_x = cv2.convertScaleAbs(grad_x)
+        abs_grad_y = cv2.convertScaleAbs(grad_y)
+        grad = cv2.addWeighted(abs_grad_y, 0.5, abs_grad_x, 0.5, 0)
+        grad = cv2.cvtColor(grad, cv2.COLOR_GRAY2RGB)
 
+
+
+        
+        cv2.imshow('sobel', grad)
+        cv2.accumulateWeighted(grad,rollAvg,0.2)
+        # grabCut(img = grad,  video = True, prevImg = grad)
+        
 
         
         
