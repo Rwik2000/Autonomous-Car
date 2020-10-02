@@ -260,7 +260,21 @@ def grabCut(path = None, video = False, img = None, prevImg = None):
     return stackAndShow(orig, drawing, 'window', wait = not video)
 
 
+def sobel(frame):
 
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    scale = 1
+    delta = 0
+    ddepth = cv2.CV_16S
+    ksize = 3
+    
+    grad_x = cv2.Sobel(gray, ddepth, 1, 0, ksize=ksize, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
+    grad_y = cv2.Sobel(gray, ddepth, 0, 1, ksize=ksize, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
+    abs_grad_x = cv2.convertScaleAbs(grad_x)
+    abs_grad_y = cv2.convertScaleAbs(grad_y)
+    grad = cv2.addWeighted(abs_grad_y, 0.5, abs_grad_x, 0.5, 0)
+    grad = cv2.cvtColor(grad, cv2.COLOR_GRAY2RGB)
+    return grad
 
 
 def executeVideo():
@@ -295,27 +309,17 @@ def executeVideo():
         # frame = cv2.resize(frame, (0,0), None,10, 10)
         
         
-        result = cv2.convertScaleAbs(rollAvg)
+        # result = cv2.convertScaleAbs(rollAvg)
+        # kernel = np.ones((7,7),np.float32)/25
+        # dst = cv2.filter2D(frame,-1,kernel)
+        # out = sobel(dst)
         
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        scale = 1
-        delta = 0
-        ddepth = cv2.CV_16S
-        ksize = 3
-        
-        grad_x = cv2.Sobel(gray, ddepth, 1, 0, ksize=ksize, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
-        grad_y = cv2.Sobel(gray, ddepth, 0, 1, ksize=ksize, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
-        abs_grad_x = cv2.convertScaleAbs(grad_x)
-        abs_grad_y = cv2.convertScaleAbs(grad_y)
-        grad = cv2.addWeighted(abs_grad_y, 0.5, abs_grad_x, 0.5, 0)
-        grad = cv2.cvtColor(grad, cv2.COLOR_GRAY2RGB)
-
 
 
         
-        cv2.imshow('sobel', grad)
-        cv2.accumulateWeighted(grad,rollAvg,0.2)
-        # grabCut(img = grad,  video = True, prevImg = grad)
+        # cv2.imshow('sobel', out)
+        cv2.accumulateWeighted(frame,rollAvg,0.2)
+        grabCut(img = rollAvg,  video = True, prevImg = rollAvg)
         
 
         
