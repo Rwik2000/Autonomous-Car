@@ -9,17 +9,17 @@ import random
 from scipy.spatial import distance
 import sys
 
-heightStart = 20
+heightStart = 30
 heightSkipInterval = 8
 nFrames = 1
-
+maxNum = 20
 def getLanes(thresh):
     height = thresh.shape[0]
     width = thresh.shape[1]
     # seedThresh = np.zeros_like(thresh)
     seedThresh = thresh.copy()
     thresh = cv2.cvtColor(thresh, cv2.COLOR_BGR2GRAY)
-    for i in range(0, 14):
+    for i in range(0, maxNum):
         coord = (int(width/2),height - heightSkipInterval*i -heightStart)
         row = thresh[coord[1]]
         isLane = (row != 0)

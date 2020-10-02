@@ -8,6 +8,7 @@ import time
 import random
 from scipy.spatial import distance
 import sys
+from cleanSobel import LaneDetection
 
 
 seedPoints = []
@@ -32,11 +33,10 @@ def kmeans_color_quantization(image, clusters=8, rounds=1):
     res = centers[labels.flatten()]
     return res.reshape((image.shape))
 
-def stackAndShow(a, b, name,  wait = False):
+def stackAndShow(a, b, name):
     horiz = np.vstack((a, b))
     cv2.imshow(name, horiz)
-    if wait:
-        return cv2.waitKey(0)
+
 
 
 
@@ -55,43 +55,24 @@ def floodfillCustomSeed(img, orig, seed, color = (255,255,255), val = 1):
 heightStart = 50
 # globalMean =  np.array([0,0,0])
 nFrames = 1
-def floodFill(img, prevframe):
+def floodFill(rollingImg, currentFrame):
     global seedPoints, globalMean, nFrames
-    height, width, _ = img.shape
-    orig = img.copy()
-    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2),  30)), color = (0,0,0), val =3)
-    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - random.randint(25,50), random.randint(25,50))),  color = (0,0,0), val =3)
-    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), random.randint(25,50))),  color = (0,0,0), val =3)
-    # cv2.imshow('img,', img)
-    # img[0: int(height/2), 0: int(width)] = 0
-
-    # img =  cv2.addWeighted(prevframe, 0.2, img, 0.8, 0)
+    height, width, _ = rollingImg.shape
+    orig = rollingImg.copy()
     mask = np.zeros((height+2,width+2),np.uint8)
     variationMax = 50
     for x in range(-100, 100, 30):
-        # pixel = np.array(img[( height - heightStart - int(abs(x)/10), int(width/2) - x)])
-        # dist = ((pixel[0] - globalMean[0])**2 + ( pixel[1] - globalMean[1])**2 + (pixel[2] - globalMean[2])**2)**(0.5)
-        # if dist > 150:
-        #     break
-        img, orig, tempMask = floodfillCustomSeed(img, orig, ((int(width/2) - x, height - heightStart - int(abs(x)/10))))
+        rollingImg, orig, tempMask = floodfillCustomSeed(rollingImg, orig, ((int(width/2) - x, height - heightStart - int(abs(x)/10))))
         mask += tempMask
     kernel = np.ones((5,5),np.uint8)
     mask[mask!=0] = 255
-
-    
-    # print(mean,np.mean(image_masked), np.var(image_masked[0]))
-    # print(mean)
     if len(seedPoints) != 0:
         for x in seedPoints:
-            pixel = np.array(img[seedPoints[0][::-1]])
+            pixel = np.array(rollingImg[seedPoints[0][::-1]])
             dist = ((pixel[0] - globalMean[0])**2 + (pixel[1] - globalMean[1])**2 + (pixel[2] - globalMean[2])**2)**(0.5)
             if dist > variationMax:
                 break
-                       
-            
-            # print(img.shape)
-            
-            img, orig, tempMask = floodfillCustomSeed(img, orig, x)
+            rollingImg, orig, tempMask = floodfillCustomSeed(rollingImg, orig, x)
             mask += tempMask
 
 
@@ -116,84 +97,75 @@ def floodFill(img, prevframe):
             coord = (coorda, coordb)
             # print(coord)
             # print(coord, slope, x, img.shape)
-            pixel = img[coord[::-1]]
+            pixel = rollingImg[coord[::-1]]
             dist = ((pixel[0] - globalMean[0])**2 + (pixel[1] - globalMean[1])**2 + (pixel[2] - globalMean[2])**2)**(0.5)
             if dist > variationMax:
                 continue
-            img, orig, tempMask = floodfillCustomSeed(img, orig, coord)
+            rollingImg, orig, tempMask = floodfillCustomSeed(rollingImg, orig, coord)
             mask += tempMask
 
     
-    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - random.randint(25,50), height - random.randint(25,50))))
-    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), height - random.randint(25,50))))
-
-    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) - random.randint(25,50), height - random.randint(25,50))))
-    # img, orig = floodfillCustomSeed(img, orig, ((int(width/2) + random.randint(25,50), height - random.randint(25,50))))
-    t = cv2.erode(mask,kernel,iterations = 1)  
+    t = mask.copy()
     t = cv2.dilate(t,kernel,iterations = 1) 
-    cv2.imshow('seededmask', mask)    
+    t = cv2.erode(t,kernel,iterations = 1)  
+    
+    # cv2.imshow('seededmask', t)    
 
 
     mask[mask!=0] = 255
     tempmask = mask[0:height, 0:width]
-    mean = cv2.mean(img, tempmask)[0:3]
+    mean = cv2.mean(rollingImg, tempmask)[0:3]
     mean = np.array([int(mean[0]), int(mean[1]), int(mean[2])])
     globalMean *= nFrames
     globalMean += mean
     nFrames += 1
     globalMean = np.array([int(globalMean[0]/nFrames), int(globalMean[1]/nFrames), int(globalMean[2]/nFrames) ])
     if nFrames >= 200:
-        nFrames = 10
-    # print(globalMean)
+        nFrames = 50
     max_dist = 50
-    # tempimg = cv2.addWeighted(img, 0.8, prevframe, 0.2, 0)
     colors = np.array([globalMean])
-    dist = distance.cdist(colors, img.reshape(-1, 3), 'euclidean')
-    maska = np.any(dist <= max_dist, axis=0).reshape(img.shape[0], img.shape[1])
-    img = np.repeat(maska[..., None], 3, axis=2) * img
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    tempImg = currentFrame.copy()
+    cv2.imshow('frame', currentFrame)
+    dist = distance.cdist(colors, tempImg.reshape(-1, 3), 'euclidean')
+    maska = np.any(dist <= max_dist, axis=0).reshape(tempImg.shape[0], tempImg.shape[1])
+    tempImg = np.repeat(maska[..., None], 3, axis=2) * tempImg
+    gray = cv2.cvtColor(tempImg, cv2.COLOR_BGR2GRAY)
     
-    # frame = cv2.resize(frame, (0,0), None, 0.1, 0.1)
-    # frame = kmeans_color_quantization(frame, 8)
-    # frame = cv2.pyrMeanShiftFiltering(frame, 2, 5)
-    # frame = cv2.resize(frame, (0,0), None,10, 10)
-    # t = cv2.blur(gray, (5,5)) .
-    gray = cv2.resize(gray, (0, 0), None, 0.8, 0.8, interpolation = cv2.INTER_AREA  )
     t = cv2.erode(gray,kernel,iterations = 1)  
     t = cv2.dilate(t,kernel,iterations = 1) 
-    t = cv2.resize(t, (0, 0), None, 1.25,1.25, interpolation = cv2.INTER_LINEAR  )
 
 
     ret, t1 = cv2.threshold(t, 1, 255, cv2.THRESH_BINARY)
     t = cv2.cvtColor(t1, cv2.COLOR_GRAY2RGB)
     cv2.imshow('t',t )
-    return img, orig, mask
+    return rollingImg, orig, mask
 
 def closest_node(node, nodes):
     closest_index = distance.cdist([node], nodes).argmin()
     return nodes[closest_index]
 
 
-def grabCut(path = None, video = False, img = None, prevImg = None):
+def grabCut(video = False, rollingImage = None, currentFrame = None):
     global seedPoints
     start = time.time()
-    h, w, _ = img.shape
-    if not video:
-        img = cv2.imread(path)
-        img = cv2.resize(img, (0, 0), None, 2, 2)
-        orig = img.copy()
-    else:
-        # prevImg = cv2.resize(img, (0, 0), None, 0.5, 0.5)
-        # img = cv2.resize(img, (0, 0), None, 0.5, 0.5)
-        # img = cv2.addWeighted(prevImg, 0.5, img, 0.5, 0)
-        #  img = cv2.subtract(img, prevImg)
-        init = prevImg.copy()
-    
+
+
+    h, w, _ = rollingImage.shape
+
+    # prevImg = cv2.resize(img, (0, 0), None, 0.5, 0.5)
+    # img = cv2.resize(img, (0, 0), None, 0.5, 0.5)
+    # img = cv2.addWeighted(prevImg, 0.5, img, 0.5, 0)
+    #  img = cv2.subtract(img, prevImg)
+    init = currentFrame.copy()
+
     # img = kmeans_color_quantization(img, clusters=3)
     # cv2.imshow('asdf', kmeans)
     # img = kmeans_color_quantization(img, clusters = 5)
     # img = cv2.blur(img, (3,3))
-    img, orig , mask= floodFill(img, prevImg)
+
+    
+    rollingImage, orig , mask= floodFill(rollingImage, currentFrame)
+    # cv2.imshow('init', img)
 
     # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) # convert to grayscale
     
@@ -202,8 +174,8 @@ def grabCut(path = None, video = False, img = None, prevImg = None):
     # ret, thresh = cv2.threshold(blur, 250, 255, cv2.THRESH_BINARY)
 
     kernel = np.ones((5,5),np.uint8)
-    thresh = cv2.dilate(mask,kernel,iterations = 20)  
-    thresh = cv2.erode(thresh,kernel,iterations = 20)  
+    thresh = cv2.dilate(mask,kernel,iterations = 5)  
+    thresh = cv2.erode(thresh,kernel,iterations = 5)  
     
     thresh = cv2.GaussianBlur(thresh,(21,21),0)
     ret, thresh = cv2.threshold(thresh, 100, 255, cv2.THRESH_BINARY)
@@ -243,21 +215,15 @@ def grabCut(path = None, video = False, img = None, prevImg = None):
     # print(drawing.shape)
     # drawing = drawing[0:h, 0:w]
     # drawing = cv2.cvtColor(drawing, cv2.COLOR_GRAY2RGB)
-    if not video:
-        init = orig
 
 
-    if init is None:
-        drawing = init
-    else:
-        drawing = cv2.addWeighted(threshThreeChannel, 1, init, 1, 0)  
 
 
         
-
+    
 
     # print(time.time() - start)
-    return stackAndShow(orig, drawing, 'window', wait = not video)
+    return stackAndShow(orig, orig, 'window')
 
 
 def sobel(frame):
@@ -319,7 +285,9 @@ def executeVideo():
         
         # cv2.imshow('sobel', out)
         cv2.accumulateWeighted(frame,rollAvg,0.2)
-        grabCut(img = rollAvg,  video = True, prevImg = rollAvg)
+        result = cv2.convertScaleAbs(rollAvg)
+        grabCut(rollingImage = result, currentFrame = frame)
+        # cv2.imshow('sobel', )
         
 
         
@@ -337,8 +305,9 @@ def executeImage():
         
         if returnval == ord('q'):
             break
-
+sobelFilt = LaneDetection(heightStart, 14, 20)
 if __name__ == "__main__":
+
     executeVideo()
     # executeImage()
 
