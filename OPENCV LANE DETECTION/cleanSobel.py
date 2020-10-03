@@ -84,7 +84,7 @@ class LaneDetection:
             # cv2.imshow('accumulated', self.rollAvgOutput)
             # cv2.waitKey(1)
 
-        out = self.postProcessFrame(self.rollAvgOutput)
+        out = self.postProcessFrame(sobelled)
         lanes = self.getLanes(out)
         return out, lanes
 

@@ -9,16 +9,23 @@ import random
 from scipy.spatial import distance
 import sys
 
-heightStart = 30
+heightStart = 20
 heightSkipInterval = 8
 nFrames = 1
+fps = 30
 maxNum = 20
+boundwidth = 10
+
+
+
 def getLanes(thresh):
     height = thresh.shape[0]
     width = thresh.shape[1]
     # seedThresh = np.zeros_like(thresh)
     seedThresh = thresh.copy()
     thresh = cv2.cvtColor(thresh, cv2.COLOR_BGR2GRAY)
+    leftLanePoints = []
+    rightLanePoints = []
     for i in range(0, maxNum):
         coord = (int(width/2),height - heightSkipInterval*i -heightStart)
         row = thresh[coord[1]]
@@ -32,16 +39,99 @@ def getLanes(thresh):
                 leftLaneIndex = (int(width/2) - j,height - heightSkipInterval*i -heightStart)
             if rightLaneIndex == None and isLane[coord[0] + j] == True:
                 rightLaneIndex = (int(width/2) + j,height - heightSkipInterval*i -heightStart)
+
         if leftLaneIndex == None:
             leftLaneIndex = coord
+            
+            # leftLanePoints.append(True)
+        else:
+            leftLanePoints.append(leftLaneIndex)
+            # cv2.circle(seedThresh, leftLaneIndex, 3, (255, 255, 0), cv2.FILLED, cv2.LINE_AA)
+
         if rightLaneIndex == None:
             rightLaneIndex = coord
-            
-        cv2.circle(seedThresh, rightLaneIndex, 3, (0, 0, 255), cv2.FILLED, cv2.LINE_AA)
-        cv2.circle(seedThresh, leftLaneIndex, 3, (255, 255, 0), cv2.FILLED, cv2.LINE_AA)
-        # print(closest_node(coord, ))
-        cv2.circle(seedThresh, coord, 2, (0, 255, 0), cv2.FILLED, cv2.LINE_AA)
+            # rightLanePoints.append(True)
+        else:
+            rightLanePoints.append(rightLaneIndex)
+            # cv2.circle(seedThresh, rightLaneIndex, 3, (0, 0, 255), cv2.FILLED, cv2.LINE_AA)
 
+
+
+    variationMax = 40
+    leftLanePointsTemp = []
+    for i in range(len(leftLanePoints)):
+        item = leftLanePoints[i]
+        if distance.euclidean(item,leftLanePoints[i-1]) < variationMax : 
+            leftLanePointsTemp.append(item)
+            cv2.circle(seedThresh, item, 3, (255, 255, 0), cv2.FILLED, cv2.LINE_AA)
+    leftLanePoints = leftLanePointsTemp
+    leftedge = max(leftLanePoints[-1][0] - boundwidth, 0)
+    rightedge = min(leftLanePoints[-1][0] + boundwidth, thresh.shape[1])
+    topedge = max(leftLanePoints[-1][1] - boundwidth, 0)
+    bottomedge = min(leftLanePoints[-1][1] + boundwidth, thresh.shape[0])
+    temp = cv2.resize(thresh[topedge:bottomedge, leftedge:rightedge], (200, 200))
+    cv2.imshow('window', temp)
+    flingVelocity = np.array(leftLanePoints[-1]) - np.array(leftLanePoints[-2])
+    maxxer = 30
+    # print(flingVelocity, end=  ' ')
+    if flingVelocity[0] < 0:
+        flingVelocity[0] = max(flingVelocity[0], -maxxer)
+    elif flingVelocity[0] > 0:
+        flingVelocity[0] = min(flingVelocity[0], maxxer)
+    if flingVelocity[1] < 0:
+        flingVelocity[1] = max(flingVelocity[1], -maxxer)
+    elif flingVelocity[1] > 0:
+        flingVelocity[1] = min(flingVelocity[1], maxxer)
+    # print(flingVelocity, end = ' ')
+
+    endPoint = np.array(leftLanePoints[-1])
+    currentPoint = endPoint
+    for i in range(5):
+        currentPoint[0] += flingVelocity[0]
+        currentPoint[1] += flingVelocity[1]
+        cv2.circle(seedThresh, tuple(currentPoint), 3, (255, 255, 0), cv2.FILLED, cv2.LINE_AA)
+
+
+
+    variationMax = 40
+    rightLanePointsTemp = []
+    for i in range(len(rightLanePoints)):
+        item = rightLanePoints[i]
+        if distance.euclidean(item,rightLanePoints[i-1]) < variationMax : 
+            rightLanePointsTemp.append(item)
+            cv2.circle(seedThresh, item, 3, (0, 255, 255), cv2.FILLED, cv2.LINE_AA)
+    rightLanePoints = rightLanePointsTemp
+    rightedge = max(rightLanePoints[-1][0] - boundwidth, 0)
+    rightedge = min(rightLanePoints[-1][0] + boundwidth, thresh.shape[1])
+    topedge = max(rightLanePoints[-1][1] - boundwidth, 0)
+    bottomedge = min(rightLanePoints[-1][1] + boundwidth, thresh.shape[0])
+    # temp = cv2.resize(thresh[topedge:bottomedge, rightedge:rightedge], (200, 200))
+    # cv2.imshow('windowright', temp)
+    if len(rightLanePoints) < 2:
+        return seedThresh
+
+
+    flingVelocity = np.array(rightLanePoints[-1]) - np.array(rightLanePoints[-2])
+    maxxer = 30
+    print(flingVelocity, end=  ' ')
+    if flingVelocity[0] < 0:
+        flingVelocity[0] = max(flingVelocity[0], -maxxer)
+    elif flingVelocity[0] > 0:
+        flingVelocity[0] = min(flingVelocity[0], maxxer)
+    if flingVelocity[1] < 0:
+        flingVelocity[1] = max(flingVelocity[1], -maxxer)
+    elif flingVelocity[1] > 0:
+        flingVelocity[1] = min(flingVelocity[1], maxxer)
+    print(flingVelocity)
+
+    endPoint = np.array(rightLanePoints[-1])
+    currentPoint = endPoint
+    for i in range(5):
+        currentPoint[0] += flingVelocity[0]
+        currentPoint[1] += flingVelocity[1]
+        cv2.circle(seedThresh, tuple(currentPoint), 3, (0, 255, 255), cv2.FILLED, cv2.LINE_AA)
+
+    
     
     return seedThresh
 
@@ -65,11 +155,10 @@ def sobel(frame):
 
 
 def executeVideo():
-    fps = 150
+    
     startTime = time.time()
     # for path in sorted(glob.glob('inputs/videos/*.mp4'), reverse=True):
     path = 'inputs/videos/' + sys.argv[1]
-    print(path)
     cap = cv2.VideoCapture(path)
     ret, frame = cap.read()
     globalMean = np.array(cv2.mean(frame)[0:3]).astype(np.int)
