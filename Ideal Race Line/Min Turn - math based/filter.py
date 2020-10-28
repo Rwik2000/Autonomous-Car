@@ -5,10 +5,10 @@ from scipy.signal import freqs
 
 class Filter:
 
-    def __init__(self):
-        self.cutOff = 23.1 #cutoff frequency in rad/s
-        self.fs = 188.495559 #sampling frequency in rad/s
-        self.order = 6 #order of filter
+    # def __init__(self):
+    #     self.cutOff = 23.1 #cutoff frequency in rad/s
+    #     self.fs = 188.495559 #sampling frequency in rad/s
+    #     self.order = 6 #order of filter
     
     def butter_lowpass(self, cutOff, fs, order=5):
         nyq = 0.5 * fs

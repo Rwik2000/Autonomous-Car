@@ -1,12 +1,17 @@
 import json
+import matplotlib
 import matplotlib.pyplot as plt
 import math
 import numpy as np
+import matplotlib
+from pylab import *
 # from filter import Filter
 
 # butterFilter = Filter()
 
-f = open('xyPoints150.txt','r')
+
+
+f = open('xyPoints1500.txt','r')
 
 points = json.load(f)
 
@@ -16,7 +21,7 @@ for point in points:
     x.append(point[0])
     y.append(point[1]+5)
 
-ftrack = open('track150.txt', 'r')
+ftrack = open('track1500.txt', 'r')
 trackPoints = json.load(ftrack)
 
 xtrack = []
@@ -52,38 +57,37 @@ for i in range(1, len(origTheta)):
 
 
 
-def moving_average(a, n=5) :
+# def moving_average(a, n=5) :
     
-    # a += [a[-1] for i in range(n+1)]
-    ret = np.cumsum(a, dtype=float)
-    ret[n:] = ret[n:] - ret[:-n]
-    retval = (ret[n - 1:] / n).tolist()
-    retval =  retval + [a[-1] for i in range(n+1)]
+#     # a += [a[-1] for i in range(n+1)]
+#     ret = np.cumsum(a, dtype=float)
+#     ret[n:] = ret[n:] - ret[:-n]
+#     retval = (ret[n - 1:] / n).tolist()
+#     # retval =  retval# + [a[-1] for i in range(n+1)]
+#     retval =   retval +  [a[-1] for i in range(n+1)] 
 
-    return retval
+#     return retval
 
+# smoothThetaDash = moving_average(origThetaDash, n = 5)
 
-smoothThetaDash = moving_average(origThetaDash, n = 4)
+dt  = x[0] - x[1]
 
-# dt  = x[1] - x[0]
-
-# def low_pass(x_new, y_old, cutoff = 10):
+def low_pass(x_new, y_old, cutoff = 0.007):
     
-#     alpha = dt / (dt + 1 / (2 * np.pi * cutoff))
-#     y_new = x_new * alpha + (1 - alpha) * y_old
-#     return y_new
+    alpha = 1 / (1 + 1 / (2 * dt* np.pi * cutoff))
+    # print(alpha, dt)
+    
+    y_new = x_new * alpha + (1 - alpha) * y_old
+    return y_new
 
-# def continuous_filter(xs):
-#     y_prev_low = 0  # initialization
-
-#     for x in xs:
-#         # y_prev_high = high_pass(x, x_prev, y_prev_high)
-#         y_prev_low = low_pass(x, y_prev_low)
-#         # x_prev = x
-#         yield y_prev_low
+def continuous_filter(xs):
+    y_prev_low = 0  # initialization
+    for x in xs:
+        y_prev_low = low_pass(x, y_prev_low)
+        yield y_prev_low
 
 
-# smoothThetaDash = np.array([out for out in continuous_filter(origThetaDash)])
+smoothThetaDash = np.array([out for out in continuous_filter(origThetaDash)])
 
 
 smoothTheta = [smoothThetaDash[0]]
@@ -91,15 +95,12 @@ smoothTheta = [smoothThetaDash[0]]
 
 offset = smoothTheta[0] - origTheta[0]
 
-
-print("Offset =", offset)
-offset -= 0.15
-print("Offset =", offset)
+offset -= 0.1
 for i in range(1, len(smoothThetaDash)):
     smoothTheta.append(smoothTheta[-1] + smoothThetaDash[i])
 
-# smoothTheta.append(origTheta[-2])
-# smoothTheta.append(origTheta[-1])
+smoothTheta.append(smoothTheta[-1])
+smoothTheta.append(smoothTheta[-1])
 
 for i in range(len(smoothTheta)):
     smoothTheta[i] -= offset
@@ -107,11 +108,16 @@ for i in range(len(smoothTheta)):
 
 
 
-startSmooth = 1
-smoothTheta = [smoothTheta[0] for i in range(startSmooth+1)] + smoothTheta
+startSmooth = 20
 
 for i in range(startSmooth+1):
-    smoothTheta.pop(-1)
+    smoothTheta.pop(0)
+
+smoothTheta =  smoothTheta + [smoothTheta[-1] for i in range(startSmooth+1)] 
+
+
+
+
 
 
 
@@ -122,30 +128,49 @@ projectedx = x.copy()
 projectedy = [y[0]]
 
 for i in range(1, len(smoothTheta)):
-    projectedy.append(projectedy[-1] + math.tan(smoothTheta[i])*(projectedx[i]  - projectedx[i-1]))
+    dx = (projectedx[i]  - projectedx[i-1])
+    dy = math.tan(smoothTheta[i])*dx
+    if abs(dy) > 5:
+        offset = -dy
+    else: 
+        offset = 0
+
+    y1 = projectedy[-1] 
+    yfinal =  y1 + dy + offset
+    projectedy.append(yfinal)
     
 
 
 
 
-plt.figure(2)
-plt.plot(origThetaDash, label = 'Original')
-plt.plot(smoothThetaDash, label = 'Smoothened')
+
+
+
+
+
+
+plt.figure(3)
+thismanager = get_current_fig_manager()
+thismanager.window.wm_geometry("+2500+0")
+plt.plot(x, y, label = 'Original')
+plt.plot(projectedx, projectedy, label = 'Smoothened')
+plt.plot(xtrack, ytrack,'+', label = 'track')
 plt.legend()
 
-
-
-
 plt.figure(1)
+thismanager = get_current_fig_manager()
+thismanager.window.wm_geometry("+1550+0")
 plt.plot(origTheta, label = 'Original')
 plt.plot(smoothTheta, label = 'Smoothened')
 plt.legend()
 
 
-plt.figure(3)
-plt.plot(x, y, label = 'Original')
-plt.plot(projectedx, projectedy, label = 'Smoothened')
-plt.plot(xtrack, ytrack,'+', label = 'track')
+plt.figure(2)
+thismanager = get_current_fig_manager()
+thismanager.window.wm_geometry("+1950+300")
+
+plt.plot(origThetaDash, label = 'Original')
+plt.plot(smoothThetaDash, label = 'Smoothened')
 plt.legend()
 
 
