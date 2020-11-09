@@ -1,11 +1,8 @@
 import cv2
 import numpy as np
-import random
-import time
 import matplotlib.pyplot as plt
 from skimage.morphology import skeletonize
 from skimage import filters
-from numba import jit
 def white_mask(image):
     hsv = cv2.cvtColor('image', cv2.COLOR_BGR2HSV)
     lower_green = np.array([0,0,150])
@@ -175,8 +172,7 @@ def floodfill(image):
     return image   
 
 
-video=cv2.VideoCapture('challenge4.mp4')
-# video=cv2.VideoCapture('./data/test photos and videos/road_traffic_2.mp4')
+video=cv2.VideoCapture('inputs/videos/athletics1.mp4')
 ret, frame = video.read()
 prev = frame.copy()
 while(video.isOpened()):
@@ -185,7 +181,6 @@ while(video.isOpened()):
     
     if ret==True:
         runAvg=image.copy()
-        # runAvg=cv2.addWeighted(image,0.5,prev,0.5,0)
         prev=image.copy()
         floodfill(runAvg)
         key = cv2.waitKey(42)
@@ -199,9 +194,3 @@ while(video.isOpened()):
 
 video.release()
 cv2.destroyAllWindows()
-# start=time.time()
-# input_img=cv2.imread("1.jpg")
-# output_img=floodfill(input_img)
-# end=time.time()
-# print(end-start)
-# cv2.waitKey(0)

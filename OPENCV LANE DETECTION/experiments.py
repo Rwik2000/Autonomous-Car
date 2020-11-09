@@ -2,11 +2,7 @@
 import numpy as np
 import cv2
 from matplotlib import pyplot as plt
-import glob
-import math
 import time
-import random
-from scipy.spatial import distance
 import sys
 
 window = None

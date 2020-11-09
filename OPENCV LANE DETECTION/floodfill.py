@@ -19,7 +19,7 @@ def floodfill(image):
 
     return image
 
-video=cv2.VideoCapture('challenge.mp4')
+video=cv2.VideoCapture('inputs/videos/athletics1.mp4')
 # video=cv2.VideoCapture('./data/test photos and videos/road_traffic_2.mp4')
 
 while(video.isOpened()):
